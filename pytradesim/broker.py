@@ -58,7 +58,7 @@ class MessageBroker(BaseApplication):
 
     def fromApp(self, message, sessionID):
         responses = self.process(message, sessionID)
-        
+
         for response in responses:
             if isinstance(response[1], fix.Message):
                 try:
@@ -118,10 +118,10 @@ class MessageBroker(BaseApplication):
         execution_report.setField(fix.ExecTransType(exec_trans_type))
         execution_report.setField(fix.ExecType(exec_type))
         execution_report.setField(fix.LeavesQty(0))
-        
+
         self.logger.debug(
-                f"Created execution report (symbol, side, quantity, price): "
-                f"{symbol} {side} {quantity} {price}."
+            f"Created execution report (symbol, side, quantity, price): "
+            f"{symbol} {side} {quantity} {price}."
         )
 
         return execution_report
@@ -146,7 +146,9 @@ class MessageBroker(BaseApplication):
 
         # if trade.session.toString() != sessionID.toString():
         if trade.session.toString() not in self.sessions:
-            self.logger.debug(f"Trade session {trade.session} and sessionID {sessionID} do not match, skipping trade")
+            self.logger.debug(
+                f"Trade session {trade.session} and sessionID {sessionID} do not match, skipping trade"
+            )
             self.logger.debug(f"Dumping trade \n{trade}")
             return
 

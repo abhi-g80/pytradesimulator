@@ -59,7 +59,7 @@ class MessageBroker(BaseApplication):
 
     def fromApp(self, message, sessionID):
         responses = self.process(message, sessionID)
-        
+
         for response in responses:
             if isinstance(response[1], fix.Message):
                 try:
@@ -125,10 +125,10 @@ class MessageBroker(BaseApplication):
 
         if exec_type == fix.ExecType_REJECTED:
             execution_report.setField(fix.OrdRejReason(reject_reason))
-        
+
         self.logger.debug(
-                f"Created execution report (symbol, side, quantity, price, client order ID): "
-                f"{symbol} {side} {quantity} {price} {client_order_id}."
+            f"Created execution report (symbol, side, quantity, price, client order ID): "
+            f"{symbol} {side} {quantity} {price} {client_order_id}."
         )
 
         return execution_report
@@ -153,7 +153,9 @@ class MessageBroker(BaseApplication):
 
         # if trade.session.toString() != sessionID.toString():
         if trade.session.toString() not in self.sessions:
-            self.logger.debug(f"Trade session {trade.session} and sessionID {sessionID} do not match, skipping trade")
+            self.logger.debug(
+                f"Trade session {trade.session} and sessionID {sessionID} do not match, skipping trade"
+            )
             self.logger.debug(f"Dumping trade \n{trade}")
             return
 
@@ -222,18 +224,27 @@ class MessageBroker(BaseApplication):
 
         if market not in MARKETS:
             execution_report = self._create_execution_report(
-                symbol, price, quantity, side, client_order_id,
+                symbol,
+                price,
+                quantity,
+                side,
+                client_order_id,
                 text=f"Symbol {symbol.getValue()} not found.",
-                exec_type=fix.ExecType_REJECTED, reject_reason=fix.OrdRejReason_UNKNOWN_SYMBOL
+                exec_type=fix.ExecType_REJECTED,
+                reject_reason=fix.OrdRejReason_UNKNOWN_SYMBOL,
             )
             return [(sessionID, execution_report)]
 
-        if client_order_id not in CLIENT_ORDER_IDs[sessionID]: 
+        if client_order_id not in CLIENT_ORDER_IDs[sessionID]:
             execution_report = self._create_execution_report(
-                symbol, price, quantity, side, client_order_id,
+                symbol,
+                price,
+                quantity,
+                side,
+                client_order_id,
                 text=f"Client order ID {client_order_id} not found.",
                 exec_type=fix.ExecType_REJECTED,
-                reject_reason=fix.OrdRejReason_UNKNOWN_ORDER
+                reject_reason=fix.OrdRejReason_UNKNOWN_ORDER,
             )
             return [(sessionID, execution_report)]
 
@@ -250,7 +261,12 @@ class MessageBroker(BaseApplication):
         if MARKETS[market].trades.qsize() == 0:
             self.logger.debug("No trades.")
             execution_report = self._create_execution_report(
-                symbol, price, quantity, side, client_order_id, exec_type=fix.ExecType_REPLACED
+                symbol,
+                price,
+                quantity,
+                side,
+                client_order_id,
+                exec_type=fix.ExecType_REPLACED,
             )
             execution_reports.append((sessionID, execution_report))
         else:

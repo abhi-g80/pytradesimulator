@@ -123,7 +123,6 @@ class Client(BaseApplication):
                     f"Order: {exec_id}, {client_order_id} {symbol} {quantity}@{price} {side}"
                 )
 
-
     def __get_attributes(self, message):
         price = fix.LastPx()
         quantity = fix.LastQty()
@@ -183,7 +182,9 @@ def new_order(sender_comp_id, target_comp_id, symbol, quantity, price, side):
     return message
 
 
-def replace_order(sender_comp_id, target_comp_id, quantity, price, orig_client_order_id):
+def replace_order(
+    sender_comp_id, target_comp_id, quantity, price, orig_client_order_id
+):
     curr_time = datetime.now().strftime("%Y%m%d-%H:%M:%S.%f")
 
     symbol = ORDERS[orig_client_order_id][0].getValue()
@@ -219,7 +220,9 @@ def send(message):
     context_settings=dict(help_option_names=["-h", "--help"]),
     options_metavar="[options...]",
 )
-@click.argument("client_config", type=click.Path(exists=True), metavar="[client config]")
+@click.argument(
+    "client_config", type=click.Path(exists=True), metavar="[client config]"
+)
 @click.option(
     "-d",
     "--debug",
@@ -260,7 +263,7 @@ def main(client_config="configs/client1.cfg", debug=None):
 
     sleep(1)
 
-    while True: 
+    while True:
         try:
             sleep(1)
             choice = int(input("Enter choice :- \n1. New order\n2. Replace order\n> "))
@@ -271,7 +274,9 @@ def main(client_config="configs/client1.cfg", debug=None):
                 quantity = input("Quantity: ")
                 side = input("Side: ")
 
-                message = new_order(sender_compid, target_compid, symbol, quantity, price, side)
+                message = new_order(
+                    sender_compid, target_compid, symbol, quantity, price, side
+                )
 
                 print("Sending order...")
                 send(message)
@@ -280,7 +285,9 @@ def main(client_config="configs/client1.cfg", debug=None):
                 price = input("Price: ")
                 quantity = input("Quantity: ")
 
-                message = replace_order(sender_compid, target_compid, quantity, price, order_id)
+                message = replace_order(
+                    sender_compid, target_compid, quantity, price, order_id
+                )
 
                 print("Sending replace...")
                 send(message)

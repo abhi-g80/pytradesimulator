@@ -126,7 +126,7 @@ def test_orderbook_partial_passive_execution():
         assert trade.price == 23.54
         assert trade.quantity == 50
         assert trade.exec_id == "TEST_TEST000001"
-    
+
     assert orderbook.bids[23.54][0].quantity == 50
 
 
@@ -145,7 +145,7 @@ def test_orderbook_partial_aggressive_execution():
         assert trade.price == 23.54
         assert trade.quantity == 50
         assert trade.exec_id == "TEST_TEST000001"
-    
+
     assert orderbook.asks[23.54][0].quantity == 50
     assert orderbook.asks[23.54][0].order_id == "NEWORDER_2"
     assert len(orderbook.bids[23.54]) == 0
@@ -168,7 +168,6 @@ def test_orderbook_multiple_execution():
 
     order = Order("TEST", 23.51, 10, "B", "NEWORDER_4", "TESTSESSION")
     orderbook.process_incoming_order(order)
-
 
     order = Order("TEST", 23.55, 100, "S", "NEWORDER_5", "TESTSESSION")
     orderbook.process_incoming_order(order)

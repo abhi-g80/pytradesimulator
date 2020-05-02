@@ -28,7 +28,9 @@ class LogFormat(logging.Formatter):
 
 
 def setup_logging(log_path, file_name):
-    log_formatter = LogFormat(fmt="%(asctime)s [%(levelname)-7.7s] (%(funcName)-9.9s) %(message)s")
+    log_formatter = LogFormat(
+        fmt="%(asctime)s [%(levelname)-7.7s] (%(funcName)-9.9s) %(message)s"
+    )
     root_logger = logging.getLogger()
 
     file_handler = logging.FileHandler("{0}/{1}.log".format(log_path, file_name))
@@ -47,8 +49,12 @@ def setup_logging(log_path, file_name):
     options_metavar="[options...]",
 )
 @click.option(
-        "-d", "--debug", is_flag=True, default=False,
-        show_default=True, help="Print debug messages."
+    "-d",
+    "--debug",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Print debug messages.",
 )
 def main(debug=None):
     """FIX gateway
