@@ -5,8 +5,8 @@ import logging
 from datetime import datetime
 from time import sleep
 
-from orderbook import Orderbook, Order, Trade
-from broker import MessageBroker, MARKETS
+from modules.orderbook import Orderbook, Order, Trade
+from modules.broker2 import MessageBroker, MARKETS
 
 import click
 import quickfix as fix

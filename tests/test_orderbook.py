@@ -1,7 +1,7 @@
 import pytest
 import sys
 
-from pytradesim.orderbook import Orderbook, Order, Trade
+from pytradesim.modules.orderbook import Orderbook, Order, Trade
 
 
 def test_order():
@@ -67,17 +67,31 @@ def test_orderbook_deletion():
     assert len(orderbook.bids[23.54]) == 0
 
 
-def test_orderbook_replace():
+def test_orderbook_replace_size():
     order = Order("TEST", 23.54, 100, "B", "NEWORDER_1", "TESTSESSION")
     orderbook = Orderbook("TEST")
 
     orderbook.process_incoming_order(order)
 
-    order = Order("TEST", 23.54, 120, "B", "NEWORDER_1", "TESTSESSION")
+    order = Order("TEST", 23.54, 120, "B", "NEWORDER_2", "TESTSESSION")
 
-    orderbook._replace_order(order)
+    orderbook._replace_order("NEWORDER_1", order)
 
     assert orderbook.bids[23.54][0].quantity == 120
+
+
+def test_orderbook_replace_price_and_size():
+    order = Order("TEST", 23.54, 100, "B", "NEWORDER_1", "TESTSESSION")
+    orderbook = Orderbook("TEST")
+
+    orderbook.process_incoming_order(order)
+
+    order = Order("TEST", 23.55, 120, "B", "NEWORDER_2", "TESTSESSION")
+
+    orderbook._replace_order("NEWORDER_1", order)
+
+    assert orderbook.bids[23.55][0].quantity == 120
+    assert orderbook.bids[23.55][0].price == 23.55
 
 
 def test_orderbook_full_execution():

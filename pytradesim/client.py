@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import quickfix as fix
+import quickfix42 as fix42
 import time
 import click
 import logging
@@ -9,7 +10,10 @@ from time import sleep
 
 from datetime import datetime
 
-from utils import LogFormat, setup_logging, Message
+from modules.utils import LogFormat, setup_logging, Message
+
+
+ORDERS = {}
 
 
 class BaseApplication(fix.Application):
@@ -96,9 +100,29 @@ class Client(BaseApplication):
                     order_status,
                 ) = self.__get_attributes(message)
 
+                ORDERS[client_order_id.getValue()] = [symbol, price, quantity, side]
+
                 self.logger.info(
                     f"Order: {exec_id}, {client_order_id} {symbol} {quantity}@{price} {side}"
                 )
+            elif exectype.getValue() == "5":
+                self.logger.info("Order replaced successfully.")
+                (
+                    symbol,
+                    price,
+                    quantity,
+                    side,
+                    client_order_id,
+                    exec_id,
+                    order_status,
+                ) = self.__get_attributes(message)
+
+                ORDERS[client_order_id.getValue()] = [symbol, price, quantity, side]
+
+                self.logger.info(
+                    f"Order: {exec_id}, {client_order_id} {symbol} {quantity}@{price} {side}"
+                )
+
 
     def __get_attributes(self, message):
         price = fix.LastPx()
@@ -120,13 +144,13 @@ class Client(BaseApplication):
         return (symbol, price, quantity, side, client_order_id, exec_id, order_status)
 
 
-def get_order_id(symbol):
+def get_order_id(sender_comp_id, symbol):
     if symbol in ORDER_TABLE:
         _id = ORDER_TABLE[symbol]
     else:
         _id = 1
 
-    order_id = symbol + str(_id)
+    order_id = sender_comp_id + symbol + str(_id)
     ORDER_TABLE[symbol] = _id + 1
 
     return order_id
@@ -145,7 +169,32 @@ def new_order(sender_comp_id, target_comp_id, symbol, quantity, price, side):
     header.setField(fix.SenderCompID(sender_comp_id))
     header.setField(fix.TargetCompID(target_comp_id))
     header.setField(fix.MsgType("D"))
-    ord_id = get_order_id(symbol)
+    ord_id = get_order_id(sender_comp_id, symbol)
+    message.setField(fix.ClOrdID(ord_id))
+    message.setField(fix.Symbol(symbol))
+    message.setField(fix.Side(side))
+    message.setField(fix.Price(float(price)))
+    message.setField(fix.OrdType(fix.OrdType_LIMIT))
+    message.setField(fix.HandlInst(fix.HandlInst_MANUAL_ORDER_BEST_EXECUTION))
+    message.setField(60, str(curr_time))
+    message.setField(fix.OrderQty(float(quantity)))
+    message.setField(fix.Text(f"{side} {symbol} {quantity}@{price}"))
+
+    return message
+
+
+def replace_order(sender_comp_id, target_comp_id, quantity, price, orig_client_order_id):
+    curr_time = datetime.now().strftime("%Y%m%d-%H:%M:%S.%f")
+
+    symbol = ORDERS[orig_client_order_id][0].getValue()
+    side = ORDERS[orig_client_order_id][3].getValue()
+
+    message = fix42.OrderCancelReplaceRequest()
+    header = message.getHeader()
+    header.setField(fix.SenderCompID(sender_comp_id))
+    header.setField(fix.TargetCompID(target_comp_id))
+    ord_id = get_order_id(sender_comp_id, symbol)
+    message.setField(fix.OrigClOrdID(orig_client_order_id))
     message.setField(fix.ClOrdID(ord_id))
     message.setField(fix.Symbol(symbol))
     message.setField(fix.Side(side))
@@ -211,19 +260,31 @@ def main(client_config="configs/client1.cfg", debug=None):
 
     sleep(1)
 
-    while True:
+    while True: 
         try:
             sleep(1)
-            print("Enter order :- ")
-            symbol = input("Symbol: ")
-            price = input("Price: ")
-            quantity = input("Quantity: ")
-            side = input("Side: ")
+            choice = int(input("Enter choice :- \n1. New order\n2. Replace order\n> "))
+            if choice == 1:
+                print("Enter order :- ")
+                symbol = input("Symbol: ")
+                price = input("Price: ")
+                quantity = input("Quantity: ")
+                side = input("Side: ")
 
-            message = new_order(sender_compid, target_compid, symbol, quantity, price, side)
+                message = new_order(sender_compid, target_compid, symbol, quantity, price, side)
 
-            print("Sending order...")
-            send(message)
+                print("Sending order...")
+                send(message)
+            elif choice == 2:
+                order_id = input("Enter OrderID: ")
+                price = input("Price: ")
+                quantity = input("Quantity: ")
+
+                message = replace_order(sender_compid, target_compid, quantity, price, order_id)
+
+                print("Sending replace...")
+                send(message)
+
         except KeyboardInterrupt:
             initiator.stop()
             print("Goodbye... !\n")
