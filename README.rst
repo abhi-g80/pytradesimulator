@@ -11,5 +11,6 @@ order to orderbook.
 Test
 ====
 All tests should pass.
+.. code-block:: bash
 
     $ py.test tests -v
