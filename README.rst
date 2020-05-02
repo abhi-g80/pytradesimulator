@@ -12,5 +12,4 @@ Test
 ====
 All tests should pass.
 
-    $ cd pytradesim
     $ py.test tests -v
