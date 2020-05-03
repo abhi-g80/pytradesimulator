@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "pytradesim"
 version = "0.1.0"
-description = ""
+description = "A python package to simulate trading exchange"
 authors = ["Abhishek Guha <abhi.workspace@gmail.com>"]
 
 [tool.poetry.dependencies]
