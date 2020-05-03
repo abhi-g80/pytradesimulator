@@ -1,9 +1,10 @@
 import quickfix as fix
 
-from orderbook import Orderbook, Order, Trade
+from .orderbook import Orderbook, Order, Trade
+
+CLIENT_ORDER_IDs = {}
 
 ORDER_IDs = {}
-CLIENT_ORDER_IDs = {}
 EXECUTION_IDs = {}
 
 MARKETS = {}
@@ -97,7 +98,7 @@ class MessageBroker(BaseApplication):
         order_status=fix.OrdStatus_NEW,
         exec_trans_type=fix.ExecTransType_NEW,
         exec_type=fix.ExecType_NEW,
-        text="",
+        text=None,
         reject_reason=None,
     ):
         execution_report = Message()
@@ -121,14 +122,16 @@ class MessageBroker(BaseApplication):
         execution_report.setField(fix.ExecTransType(exec_trans_type))
         execution_report.setField(fix.ExecType(exec_type))
         execution_report.setField(fix.LeavesQty(0))
-        execution_report.setField(fix.Text(text))
+
+        if text:
+            execution_report.setField(fix.Text(text))
 
         if exec_type == fix.ExecType_REJECTED:
             execution_report.setField(fix.OrdRejReason(reject_reason))
 
         self.logger.debug(
-            f"Created execution report (symbol, side, quantity, price, client order ID): "
-            f"{symbol} {side} {quantity} {price} {client_order_id}."
+            f"Created execution report (symbol, side, quantity, price): "
+            f"{symbol} {side} {quantity} {price}."
         )
 
         return execution_report
@@ -191,10 +194,10 @@ class MessageBroker(BaseApplication):
             sessionID,
         )
 
-        if sessionID in CLIENT_ORDER_IDs:
-            CLIENT_ORDER_IDs[sessionID].append(client_order_id)
+        if sessionID.toString() in CLIENT_ORDER_IDs:
+            CLIENT_ORDER_IDs[sessionID.toString()].append(client_order_id.getValue())
         else:
-            CLIENT_ORDER_IDs[sessionID] = [client_order_id]
+            CLIENT_ORDER_IDs[sessionID.toString()] = [client_order_id.getValue()]
 
         execution_reports = []
 
@@ -219,6 +222,10 @@ class MessageBroker(BaseApplication):
 
     def order_replace(self, message, sessionID):
         symbol, price, quantity, side, client_order_id = self.__get_attributes(message)
+
+        orig_client_order_id = fix.OrigClOrdID()
+        message.getField(orig_client_order_id)
+
         execution_report = None
         market = symbol.getValue()
 
@@ -235,27 +242,42 @@ class MessageBroker(BaseApplication):
             )
             return [(sessionID, execution_report)]
 
-        if client_order_id not in CLIENT_ORDER_IDs[sessionID]:
+        self.logger.debug(CLIENT_ORDER_IDs)
+
+        if (sessionID.toString() not in CLIENT_ORDER_IDs) or (
+            orig_client_order_id.getValue()
+            not in CLIENT_ORDER_IDs[sessionID.toString()]
+        ):
             execution_report = self._create_execution_report(
                 symbol,
                 price,
                 quantity,
                 side,
                 client_order_id,
-                text=f"Client order ID {client_order_id} not found.",
+                text=f"Client order ID {client_order_id.getValue()} not found.",
                 exec_type=fix.ExecType_REJECTED,
                 reject_reason=fix.OrdRejReason_UNKNOWN_ORDER,
             )
             return [(sessionID, execution_report)]
 
-        if sessionID in CLIENT_ORDER_IDs:
-            CLIENT_ORDER_IDs[sessionID].append(client_order_id)
+        if sessionID.toString() in CLIENT_ORDER_IDs:
+            CLIENT_ORDER_IDs[sessionID.toString()].append(client_order_id.getValue())
         else:
-            CLIENT_ORDER_IDs[sessionID] = [client_order_id]
+            CLIENT_ORDER_IDs[sessionID.toString()] = [client_order_id.getValue()]
 
         execution_reports = []
 
-        MARKETS[market]._replace_order(order)
+        order_side = "b" if side.getValue() == "1" else "s"
+        order = Order(
+            symbol.getValue(),
+            price.getValue(),
+            quantity.getValue(),
+            order_side,
+            client_order_id.getValue(),
+            sessionID,
+        )
+
+        MARKETS[market]._replace_order(orig_client_order_id.getValue(), order)
         self.logger.debug("Processed replace order.")
 
         if MARKETS[market].trades.qsize() == 0:
