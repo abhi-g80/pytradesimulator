@@ -38,7 +38,7 @@ def test_orderbook_reject():
 
     orderbook = Orderbook("TEST")
 
-    assert orderbook.process_incoming_order(order) == "Incorrect orderbook assignment"
+    assert orderbook.process_incoming_order(order) == "[Internal] Incorrect orderbook assignment"
 
 
 def test_orderbook_insertion():
@@ -62,7 +62,7 @@ def test_orderbook_deletion():
 
     orderbook.process_incoming_order(order)
 
-    orderbook._delete_order(order)
+    orderbook._delete_order("NEWORDER_1")
 
     assert len(orderbook.bids[23.54]) == 0
 
@@ -204,3 +204,113 @@ def test_orderbook_multiple_execution():
     assert orderbook.best_ask == 23.53
     assert orderbook.best_bid == 23.51
     assert orderbook.asks[23.53][0].order_id == "NEWORDER_9"
+
+
+def test_orderbook_bbo():
+    orderbook = Orderbook("TEST")
+
+    order = Order("TEST", 23.54, 150, "B", "TESTSESSION_1_NEWORDER_1", "TESTSESSION_1")
+    orderbook.process_incoming_order(order)
+
+    order = Order("TEST", 23.55, 130, "S", "TESTSESSION_2_NEWORDER_1", "TESTSESSION_2")
+    orderbook.process_incoming_order(order)
+
+    assert orderbook.bbo() == (23.54, 23.55)
+
+
+def test_orderbook_replace_execution():
+    orderbook = Orderbook("TEST")
+
+    order = Order("TEST", 23.54, 150, "B", "TESTSESSION_1_NEWORDER_1", "TESTSESSION_1")
+    orderbook.process_incoming_order(order)
+
+    order = Order("TEST", 23.55, 130, "S", "TESTSESSION_2_NEWORDER_1", "TESTSESSION_2")
+    orderbook.process_incoming_order(order)
+
+    order = Order("TEST", 23.55, 140, "B", "TESTSESSION_1_NEWORDER_2", "TESTSESSION_1")
+    orderbook._replace_order("TESTSESSION_1_NEWORDER_1", order)
+
+    assert orderbook.trades.qsize() == 2
+
+    while not orderbook.trades.empty():
+        trade = orderbook.trades.get()
+
+        assert trade.price == 23.55
+        assert trade.quantity == 130
+
+    assert orderbook.bbo() == (23.55, float("inf"))
+
+
+def test_orderbook_deletion_bbo():
+    orderbook = Orderbook("TEST")
+
+    order = Order("TEST", 23.54, 150, "B", "TESTSESSION_1_NEWORDER_1", "TESTSESSION_1")
+    orderbook.process_incoming_order(order)
+
+    order = Order("TEST", 23.55, 130, "S", "TESTSESSION_2_NEWORDER_1", "TESTSESSION_2")
+    orderbook.process_incoming_order(order)
+
+    order = Order("TEST", 23.56, 120, "S", "TESTSESSION_2_NEWORDER_2", "TESTSESSION_2")
+    orderbook.process_incoming_order(order)
+
+    assert orderbook.bbo() == (23.54, 23.55)
+
+    assert len(orderbook.asks[23.55]) == 1
+
+    orderbook._delete_order("TESTSESSION_2_NEWORDER_1")
+
+    assert len(orderbook.asks[23.55]) == 0
+
+    assert orderbook.bbo() == (23.54, 23.56)
+
+
+def test_orderbook_replace_execution_deletion():
+    orderbook = Orderbook("TEST")
+
+    order = Order("TEST", 23.54, 150, "B", "TESTSESSION_1_NEWORDER_1", "TESTSESSION_1")
+    orderbook.process_incoming_order(order)
+
+    order = Order("TEST", 23.54, 250, "B", "TESTSESSION_3_NEWORDER_1", "TESTSESSION_3")
+    orderbook.process_incoming_order(order)
+
+    order = Order("TEST", 23.57, 130, "S", "TESTSESSION_2_NEWORDER_1", "TESTSESSION_2")
+    orderbook.process_incoming_order(order)
+
+    order = Order("TEST", 23.59, 120, "S", "TESTSESSION_2_NEWORDER_2", "TESTSESSION_2")
+    orderbook.process_incoming_order(order)
+
+    assert orderbook.bbo() == (23.54, 23.57)
+
+    order = Order("TEST", 23.56, 350, "B", "TESTSESSION_3_NEWORDER_2", "TESTSESSION_3")
+    orderbook._replace_order("TESTSESSION_3_NEWORDER_1", order)
+
+    assert orderbook.bbo() == (23.56, 23.57)
+    # orderbook._delete_order("TESTSESSION_2_NEWORDER_1")
+
+    order = Order("TEST", 23.56, 351, "S", "TESTSESSION_2_NEWORDER_3", "TESTSESSION_2")
+    orderbook._replace_order("TESTSESSION_2_NEWORDER_2", order)
+
+    assert orderbook.trades.qsize() == 2
+
+    assert orderbook.bbo() == (23.54, 23.56)
+
+    while not orderbook.trades.empty():
+        trade = orderbook.trades.get()
+
+        assert trade.price == 23.56
+        assert trade.quantity == 350
+
+    orderbook._delete_order("TESTSESSION_2_NEWORDER_3")
+
+    assert orderbook.bbo() == (23.54, 23.57)
+
+
+def test_orderbook_duplicate_order_id():
+    orderbook = Orderbook("TEST")
+
+    order = Order("TEST", 23.59, 120, "S", "TESTSESSION_2_NEWORDER_2", "TESTSESSION_2")
+    orderbook.process_incoming_order(order)
+
+    order = Order("TEST", 23.49, 130, "B", "TESTSESSION_2_NEWORDER_2", "TESTSESSION_2")
+
+    assert orderbook.process_incoming_order(order) == "[Internal] duplicate order ID sent"

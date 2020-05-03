@@ -12,21 +12,24 @@ class Orderbook:
         self.trades = queue.Queue()
         self.bids = defaultdict(list)
         self.asks = defaultdict(list)
-        self.order_ids = {}
+        self.live_order_ids = {}
 
     @property
     def best_bid(self):
         if self.bids:
-            return max(self.bids.keys())
+            return max([k for k in self.bids if self.bids[k]], default=float("-inf"))
         else:
             return float("-inf")
 
     @property
     def best_ask(self):
         if self.asks:
-            return min(self.asks.keys())
+            return min([k for k in self.asks if self.asks[k]], default=float("inf"))
         else:
             return float("inf")
+
+    def bbo(self):
+        return (self.best_bid, self.best_ask)
 
     def _level_qty(self, level):
         if level:
@@ -35,7 +38,6 @@ class Orderbook:
                 qty += order.quantity
             return qty
         else:
-            # return "Empty"
             return 0
 
     def _show_orderbook(self):
@@ -80,8 +82,8 @@ class Orderbook:
         side = order.side
         best_bid, best_ask = self.best_bid, self.best_ask
 
-        if order.order_id not in self.order_ids:
-            self.order_ids[order.order_id] = order.price
+        if order.order_id not in self.live_order_ids:
+            self.live_order_ids[order.order_id] = (order.price, order.side)
         else:
             return "[Internal] duplicate order ID sent"
 
@@ -102,23 +104,22 @@ class Orderbook:
 
     def _replace_order(self, orig_order_id, order):
         levels = self.asks if order.side == "s" else self.bids
-        price = self.order_ids[orig_order_id]
+        price = self.live_order_ids[orig_order_id][0]
 
         for resting_order in levels[price]:
             if resting_order.order_id == orig_order_id:
-                levels[resting_order.price].remove(resting_order)
-                if order.price in levels:
-                    levels[order.price].append(order)
-                else:
-                    levels[order.price] = [order]
+                levels[price].remove(resting_order)
+                self.process_incoming_order(order)
                 break
 
-    def _delete_order(self, order):
-        levels = self.asks if order.side == "s" else self.bids
+    def _delete_order(self, orig_order_id):
+        price, side = self.live_order_ids[orig_order_id]
+        levels = self.asks if side == "s" else self.bids
 
-        for resting_order in levels[order.price]:
-            if resting_order.order_id == order.order_id:
-                levels[order.price].remove(resting_order)
+        for resting_order in levels[price]:
+            if resting_order.order_id == orig_order_id:
+                levels[price].remove(resting_order)
+                self.live_order_ids.pop(orig_order_id)
                 break
 
     def _match(self, side, order_price, book_price):
