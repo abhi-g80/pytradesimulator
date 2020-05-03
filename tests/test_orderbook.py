@@ -38,7 +38,10 @@ def test_orderbook_reject():
 
     orderbook = Orderbook("TEST")
 
-    assert orderbook.process_incoming_order(order) == "[Internal] Incorrect orderbook assignment"
+    assert (
+        orderbook.process_incoming_order(order)
+        == "[Internal] Incorrect orderbook assignment"
+    )
 
 
 def test_orderbook_insertion():
@@ -313,4 +316,6 @@ def test_orderbook_duplicate_order_id():
 
     order = Order("TEST", 23.49, 130, "B", "TESTSESSION_2_NEWORDER_2", "TESTSESSION_2")
 
-    assert orderbook.process_incoming_order(order) == "[Internal] duplicate order ID sent"
+    assert (
+        orderbook.process_incoming_order(order) == "[Internal] duplicate order ID sent"
+    )

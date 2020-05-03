@@ -288,7 +288,11 @@ def main(client_config="configs/client1.cfg", debug=None):
     while True:
         try:
             sleep(1)
-            choice = int(input("Enter choice :- \n1. New order\n2. Replace order\n3. Delete order\n> "))
+            choice = int(
+                input(
+                    "Enter choice :- \n1. New order\n2. Replace order\n3. Delete order\n> "
+                )
+            )
             if choice == 1:
                 print("Enter order :- ")
                 symbol = input("Symbol: ")
@@ -316,9 +320,7 @@ def main(client_config="configs/client1.cfg", debug=None):
             elif choice == 3:
                 order_id = input("Enter OrderID: ")
 
-                message = delete_order(
-                    sender_compid, target_compid, order_id
-                )
+                message = delete_order(sender_compid, target_compid, order_id)
 
                 print("Sending delete order...")
                 send(message)

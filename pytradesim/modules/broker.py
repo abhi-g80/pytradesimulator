@@ -138,9 +138,7 @@ class MessageBroker(BaseApplication):
         if exec_type == fix.ExecType_REJECTED:
             execution_report.setField(fix.OrdRejReason(reject_reason))
 
-        self.logger.debug(
-            f"Created execution report {execution_report.__str__()}"
-        )
+        self.logger.debug(f"Created execution report {execution_report.__str__()}")
 
         return execution_report
 
@@ -297,7 +295,7 @@ class MessageBroker(BaseApplication):
                 price=price,
                 quantity=quantity,
                 exec_type=fix.ExecType_REPLACED,
-                orig_client_order_id=orig_client_order_id
+                orig_client_order_id=orig_client_order_id,
             )
             execution_reports.append((sessionID, execution_report))
         else:
