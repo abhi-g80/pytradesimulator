@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pytradesim"
-version = "0.1.0"
+version = "0.1.1"
 description = "A python package to simulate trading exchange"
 authors = ["Abhishek Guha <abhi.workspace@gmail.com>"]
 
@@ -9,6 +9,7 @@ python = "^3.7"
 quickfix = "^1.15.1"
 click = "^7.1.1"
 docutils = "^0.16"
+pytest = "^5.4.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
