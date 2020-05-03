@@ -91,16 +91,18 @@ class MessageBroker(BaseApplication):
     def _create_execution_report(
         self,
         symbol,
-        price,
-        quantity,
         side,
         client_order_id,
+        price=None,
+        quantity=None,
         order_status=fix.OrdStatus_NEW,
         exec_trans_type=fix.ExecTransType_NEW,
         exec_type=fix.ExecType_NEW,
         text=None,
         reject_reason=None,
+        orig_client_order_id=None,
     ):
+        # defaults
         execution_report = Message()
         execution_report.getHeader().setField(fix.MsgType(fix.MsgType_ExecutionReport))
 
@@ -113,15 +115,22 @@ class MessageBroker(BaseApplication):
         execution_report.setField(fix.OrdStatus(order_status))
         execution_report.setField(symbol)
         execution_report.setField(side)
-        execution_report.setField(fix.CumQty(quantity.getValue()))
-        execution_report.setField(fix.AvgPx(price.getValue()))
-        execution_report.setField(fix.LastShares(quantity.getValue()))
-        execution_report.setField(fix.LastPx(price.getValue()))
         execution_report.setField(client_order_id)
-        execution_report.setField(quantity)
         execution_report.setField(fix.ExecTransType(exec_trans_type))
         execution_report.setField(fix.ExecType(exec_type))
         execution_report.setField(fix.LeavesQty(0))
+
+        if price:
+            execution_report.setField(fix.AvgPx(price.getValue()))
+            execution_report.setField(fix.LastPx(price.getValue()))
+
+        if quantity:
+            execution_report.setField(fix.CumQty(quantity.getValue()))
+            execution_report.setField(fix.LastShares(quantity.getValue()))
+            execution_report.setField(quantity)
+
+        if orig_client_order_id:
+            execution_report.setField(fix.OrigClOrdID(orig_client_order_id.getValue()))
 
         if text:
             execution_report.setField(fix.Text(text))
@@ -130,8 +139,7 @@ class MessageBroker(BaseApplication):
             execution_report.setField(fix.OrdRejReason(reject_reason))
 
         self.logger.debug(
-            f"Created execution report (symbol, side, quantity, price): "
-            f"{symbol} {side} {quantity} {price}."
+            f"Created execution report {execution_report.__str__()}"
         )
 
         return execution_report
@@ -166,10 +174,10 @@ class MessageBroker(BaseApplication):
 
         execution_report = self._create_execution_report(
             symbol,
-            fix.Price(trade.price),
-            fix.LastQty(trade.quantity),
             fix.Side(trade_side),
             fix.ClOrdID(trade.order_id),
+            price=fix.Price(trade.price),
+            quantity=fix.LastQty(trade.quantity),
             order_status=fix.OrdStatus_FILLED,
             exec_type=fix.ExecType_FILL,
         )
@@ -207,7 +215,7 @@ class MessageBroker(BaseApplication):
         if MARKETS[market].trades.qsize() == 0:
             self.logger.debug("No trades.")
             execution_report = self._create_execution_report(
-                symbol, price, quantity, side, client_order_id
+                symbol, side, client_order_id, price=price, quantity=quantity,
             )
             execution_reports.append((sessionID, execution_report))
         else:
@@ -232,10 +240,10 @@ class MessageBroker(BaseApplication):
         if market not in MARKETS:
             execution_report = self._create_execution_report(
                 symbol,
-                price,
-                quantity,
                 side,
                 client_order_id,
+                price=price,
+                quantity=quantity,
                 text=f"Symbol {symbol.getValue()} not found.",
                 exec_type=fix.ExecType_REJECTED,
                 reject_reason=fix.OrdRejReason_UNKNOWN_SYMBOL,
@@ -250,10 +258,10 @@ class MessageBroker(BaseApplication):
         ):
             execution_report = self._create_execution_report(
                 symbol,
-                price,
-                quantity,
                 side,
                 client_order_id,
+                price=price,
+                quantity=quantity,
                 text=f"Client order ID {client_order_id.getValue()} not found.",
                 exec_type=fix.ExecType_REJECTED,
                 reject_reason=fix.OrdRejReason_UNKNOWN_ORDER,
@@ -284,11 +292,12 @@ class MessageBroker(BaseApplication):
             self.logger.debug("No trades.")
             execution_report = self._create_execution_report(
                 symbol,
-                price,
-                quantity,
                 side,
                 client_order_id,
+                price=price,
+                quantity=quantity,
                 exec_type=fix.ExecType_REPLACED,
+                orig_client_order_id=orig_client_order_id
             )
             execution_reports.append((sessionID, execution_report))
         else:
@@ -302,18 +311,68 @@ class MessageBroker(BaseApplication):
         return execution_reports
 
     def order_cancel(self, message, sessionID):
-        symbol, price, quantity, side, client_order_id = self.__get_attributes(message)
+        self.logger.debug("Inside order delete.")
+
+        orig_client_order_id = fix.OrigClOrdID()
+        message.getField(orig_client_order_id)
+
+        symbol = fix.Symbol()
+        message.getField(symbol)
+
+        side = fix.Side()
+        message.getField(side)
+
+        client_order_id = fix.ClOrdID()
+        message.getField(client_order_id)
+
+        execution_report = None
+        market = symbol.getValue()
+
+        if market not in MARKETS:
+            execution_report = self._create_execution_report(
+                symbol,
+                side,
+                client_order_id,
+                text=f"Symbol {symbol.getValue()} not found.",
+                exec_type=fix.ExecType_REJECTED,
+                reject_reason=fix.OrdRejReason_UNKNOWN_SYMBOL,
+            )
+            return [(sessionID, execution_report)]
+
+        self.logger.debug(CLIENT_ORDER_IDs)
+
+        if (sessionID.toString() not in CLIENT_ORDER_IDs) or (
+            orig_client_order_id.getValue()
+            not in CLIENT_ORDER_IDs[sessionID.toString()]
+        ):
+            execution_report = self._create_execution_report(
+                symbol,
+                side,
+                client_order_id,
+                text=f"Client order ID {client_order_id.getValue()} not found.",
+                exec_type=fix.ExecType_REJECTED,
+                reject_reason=fix.OrdRejReason_UNKNOWN_ORDER,
+            )
+            return [(sessionID, execution_report)]
+
+        CLIENT_ORDER_IDs[sessionID.toString()].remove(orig_client_order_id.getValue())
+
+        execution_reports = []
+
+        MARKETS[market]._delete_order(orig_client_order_id.getValue())
+        self.logger.debug("Processed delete order.")
+
         execution_report = self._create_execution_report(
             symbol,
-            price,
-            quantity,
             side,
             client_order_id,
-            order_status=fix.OrdStatus_CANCELLED,
+            orig_client_order_id=orig_client_order_id,
             exec_type=fix.ExecType_CANCELLED,
         )
 
-        return execution_report
+        execution_reports.append((sessionID, execution_report))
+
+        return execution_reports
 
     def generate_order_id(self, symbol):
         if symbol in ORDER_IDs:

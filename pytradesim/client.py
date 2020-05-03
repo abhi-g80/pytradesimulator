@@ -209,6 +209,28 @@ def replace_order(
     return message
 
 
+def delete_order(sender_comp_id, target_comp_id, orig_client_order_id):
+    curr_time = datetime.now().strftime("%Y%m%d-%H:%M:%S.%f")
+
+    symbol = ORDERS[orig_client_order_id][0].getValue()
+    side = ORDERS[orig_client_order_id][3].getValue()
+
+    message = fix42.OrderCancelRequest()
+    header = message.getHeader()
+    header.setField(fix.SenderCompID(sender_comp_id))
+    header.setField(fix.TargetCompID(target_comp_id))
+    ord_id = get_order_id(sender_comp_id, symbol)
+    message.setField(fix.OrigClOrdID(orig_client_order_id))
+    message.setField(fix.ClOrdID(ord_id))
+    message.setField(fix.Symbol(symbol))
+    message.setField(fix.Side(side))
+    # message.setField(60, str(curr_time))
+    message.setField(fix.TransactTime())
+    message.setField(fix.Text(f"Delete {orig_client_order_id}"))
+
+    return message
+
+
 def send(message):
     try:
         fix.Session.sendToTarget(message)
@@ -266,7 +288,7 @@ def main(client_config="configs/client1.cfg", debug=None):
     while True:
         try:
             sleep(1)
-            choice = int(input("Enter choice :- \n1. New order\n2. Replace order\n> "))
+            choice = int(input("Enter choice :- \n1. New order\n2. Replace order\n3. Delete order\n> "))
             if choice == 1:
                 print("Enter order :- ")
                 symbol = input("Symbol: ")
@@ -278,7 +300,7 @@ def main(client_config="configs/client1.cfg", debug=None):
                     sender_compid, target_compid, symbol, quantity, price, side
                 )
 
-                print("Sending order...")
+                print("Sending new order...")
                 send(message)
             elif choice == 2:
                 order_id = input("Enter OrderID: ")
@@ -289,7 +311,16 @@ def main(client_config="configs/client1.cfg", debug=None):
                     sender_compid, target_compid, quantity, price, order_id
                 )
 
-                print("Sending replace...")
+                print("Sending replace order...")
+                send(message)
+            elif choice == 3:
+                order_id = input("Enter OrderID: ")
+
+                message = delete_order(
+                    sender_compid, target_compid, order_id
+                )
+
+                print("Sending delete order...")
                 send(message)
 
         except KeyboardInterrupt:
