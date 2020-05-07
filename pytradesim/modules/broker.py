@@ -2,7 +2,6 @@ import quickfix as fix
 
 from .orderbook import Order, Orderbook
 
-
 CLIENT_ORDER_IDs = {}
 
 ORDER_IDs = {}
