@@ -1,8 +1,14 @@
-from collections import defaultdict
 import queue
 import time
+from collections import defaultdict
+from enum import Enum
 
 from prettytable import PrettyTable
+
+
+class OrderType(Enum):
+    MARKET = 1
+    LIMIT = 2
 
 
 class Orderbook:
@@ -74,45 +80,63 @@ class Orderbook:
         print(f"Symbol: {self.symbol}")
         print(table)
 
-    def process_incoming_order(self, order):
+    def __checks(self, order):
         if order.symbol != self.symbol:
-            return "[Internal] Incorrect orderbook assignment"
-
-        timestamp = order.timestamp
-        side = order.side
-        best_bid, best_ask = self.best_bid, self.best_ask
+            return "[Internal] incorrect orderbook assignment"
 
         if order.order_id not in self.live_order_ids:
             self.live_order_ids[order.order_id] = (order.price, order.side)
         else:
             return "[Internal] duplicate order ID sent"
 
-        if side == "b":
-            if order.price >= best_ask and self.asks:
-                self.process_execution(order)
-                if order.quantity > 0:
+    def new_order(self, order):
+        result = self.__checks(order)
+
+        if result:
+            return result
+
+        # timestamp = order.timestamp
+        side = order.side
+        order_type = order.order_type
+        best_bid, best_ask = self.best_bid, self.best_ask
+
+        # Market
+        if order_type == "MARKET":
+            order.price = float("-inf") if side == "s" else float("inf")
+            self.__process_execution(order)
+            return
+
+        # Limit
+        if order_type == "LIMIT":
+            if side == "b":
+                if order.price >= best_ask and self.asks:
+                    self.__process_execution(order)
+                    if order.quantity > 0:
+                        self.bids[order.price].append(order)
+                else:
                     self.bids[order.price].append(order)
             else:
-                self.bids[order.price].append(order)
-        else:
-            if order.price <= best_bid and self.bids:
-                self.process_execution(order)
-                if order.quantity > 0:
+                if order.price <= best_bid and self.bids:
+                    self.__process_execution(order)
+                    if order.quantity > 0:
+                        self.asks[order.price].append(order)
+                else:
                     self.asks[order.price].append(order)
-            else:
-                self.asks[order.price].append(order)
 
-    def _replace_order(self, orig_order_id, order):
+    def replace_order(self, orig_order_id, order):
         levels = self.asks if order.side == "s" else self.bids
         price = self.live_order_ids[orig_order_id][0]
 
         for resting_order in levels[price]:
             if resting_order.order_id == orig_order_id:
                 levels[price].remove(resting_order)
-                self.process_incoming_order(order)
+                self.new_order(order)
                 break
 
-    def _delete_order(self, orig_order_id):
+    def delete_order(self, orig_order_id):
+        if orig_order_id not in self.live_order_ids:
+            return "[Internal] orignal order ID not found"
+
         price, side = self.live_order_ids[orig_order_id]
         levels = self.asks if side == "s" else self.bids
 
@@ -122,25 +146,24 @@ class Orderbook:
                 self.live_order_ids.pop(orig_order_id)
                 break
 
-    def _match(self, side, order_price, book_price):
+    def __match(self, side, order_price, book_price):
         if side == "s":
             return order_price <= book_price
         else:
             return order_price >= book_price
 
-    def process_execution(self, order):
+    def __process_execution(self, order):
         levels = self.asks if order.side == "b" else self.bids
 
         prices = sorted(levels.keys(), reverse=(order.side == "s"))
 
         for price in prices:
-            if order.quantity > 0 and self._match(order.side, order.price, price):
-
+            if order.quantity > 0 and self.__match(order.side, order.price, price):
                 for resting_order in levels[price]:
                     if order.quantity == 0:
                         break
 
-                    executions = self.execute(order, resting_order)
+                    executions = self.__execute(order, resting_order)
 
                     for trade in executions:
                         self.trades.put(trade)
@@ -158,7 +181,7 @@ class Orderbook:
 
         return exec_id
 
-    def execute(self, order, resting_order):
+    def __execute(self, order, resting_order):
         size = min(order.quantity, resting_order.quantity)
         order.quantity -= size
         resting_order.quantity -= size
@@ -213,12 +236,13 @@ class Trade(MatchingEngine):
 
 
 class Order(MatchingEngine):
-    def __init__(self, symbol, price, quantity, side, order_id, session):
+    def __init__(self, symbol, price, quantity, side, order_type, order_id, session):
         self.symbol = symbol
         self.session = session
         self.price = price
         self.quantity = quantity
         self.side = side
+        self.order_type = order_type
         self.order_id = order_id
         self.timestamp = self.timestamp()
 
@@ -235,9 +259,22 @@ class Order(MatchingEngine):
                 "Side cannot be empty and should be 'b' (buy) or 's' (sell)."
             )
 
+    @property
+    def order_type(self):
+        return self._order_type
+
+    @order_type.setter
+    def order_type(self, value):
+        try:
+            self._order_type = OrderType(value).name
+            return self._order_type
+        except ValueError as error:
+            raise ValueError(error)
+
     def __repr__(self):
         return (
-            f"Order(session={self.session}, symbol={self.symbol}, price={self.price}, "
-            f"quantity={self.quantity}, side={self.side}, session={self.session}, "
+            f"Order(session={self.session}, symbol={self.symbol}, "
+            f"price={self.price}, quantity={self.quantity}, side={self.side}, "
+            f"order_type={self.order_type}, session={self.session}, "
             f"order_id={self.order_id}, timestamp={self.timestamp})"
         )
