@@ -1,6 +1,7 @@
 import quickfix as fix
 
-from .orderbook import Orderbook, Order, Trade
+from .orderbook import Order, Orderbook
+
 
 CLIENT_ORDER_IDs = {}
 
@@ -147,15 +148,17 @@ class MessageBroker(BaseApplication):
         quantity = fix.OrderQty()
         symbol = fix.Symbol()
         side = fix.Side()
+        order_type = fix.OrdType()
         client_order_id = fix.ClOrdID()
 
         message.getField(client_order_id)
         message.getField(side)
+        message.getField(order_type)
         message.getField(symbol)
         message.getField(price)
         message.getField(quantity)
 
-        return (symbol, price, quantity, side, client_order_id)
+        return (symbol, price, quantity, side, order_type, client_order_id)
 
     def _handle_trade(self, symbol, trade, sessionID):
         self.logger.info("Trade(s) executed.")
@@ -163,7 +166,8 @@ class MessageBroker(BaseApplication):
         # if trade.session.toString() != sessionID.toString():
         if trade.session.toString() not in self.sessions:
             self.logger.debug(
-                f"Trade session {trade.session} and sessionID {sessionID} do not match, skipping trade"
+                f"Trade session {trade.session} and sessionID {sessionID} "
+                f"do not match, skipping trade"
             )
             self.logger.debug(f"Dumping trade \n{trade}")
             return
@@ -183,7 +187,14 @@ class MessageBroker(BaseApplication):
         return execution_report
 
     def new_order_single(self, message, sessionID):
-        symbol, price, quantity, side, client_order_id = self.__get_attributes(message)
+        (
+            symbol,
+            price,
+            quantity,
+            side,
+            order_type,
+            client_order_id,
+        ) = self.__get_attributes(message)
         execution_report = None
         market = symbol.getValue()
 
@@ -196,6 +207,7 @@ class MessageBroker(BaseApplication):
             price.getValue(),
             quantity.getValue(),
             order_side,
+            int(order_type.getValue()),
             client_order_id.getValue(),
             sessionID,
         )
@@ -207,7 +219,7 @@ class MessageBroker(BaseApplication):
 
         execution_reports = []
 
-        MARKETS[market].process_incoming_order(order)
+        MARKETS[market].new_order(order)
         self.logger.debug("Processed new order.")
 
         if MARKETS[market].trades.qsize() == 0:
@@ -227,7 +239,14 @@ class MessageBroker(BaseApplication):
         return execution_reports
 
     def order_replace(self, message, sessionID):
-        symbol, price, quantity, side, client_order_id = self.__get_attributes(message)
+        (
+            symbol,
+            price,
+            quantity,
+            side,
+            order_type,
+            client_order_id,
+        ) = self.__get_attributes(message)
 
         orig_client_order_id = fix.OrigClOrdID()
         message.getField(orig_client_order_id)
@@ -279,11 +298,12 @@ class MessageBroker(BaseApplication):
             price.getValue(),
             quantity.getValue(),
             order_side,
+            int(order_type.getValue()),
             client_order_id.getValue(),
             sessionID,
         )
 
-        MARKETS[market]._replace_order(orig_client_order_id.getValue(), order)
+        MARKETS[market].replace_order(orig_client_order_id.getValue(), order)
         self.logger.debug("Processed replace order.")
 
         if MARKETS[market].trades.qsize() == 0:
@@ -357,7 +377,7 @@ class MessageBroker(BaseApplication):
 
         execution_reports = []
 
-        MARKETS[market]._delete_order(orig_client_order_id.getValue())
+        MARKETS[market].delete_order(orig_client_order_id.getValue())
         self.logger.debug("Processed delete order.")
 
         execution_report = self._create_execution_report(

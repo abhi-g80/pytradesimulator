@@ -75,9 +75,16 @@ def main(client_config="configs/client1.cfg", debug=None):
                 price = input("Price: ")
                 quantity = input("Quantity: ")
                 side = input("Side: ")
+                order_type = input("Type: ")
 
                 message = new_order(
-                    sender_compid, target_compid, symbol, quantity, price, side
+                    sender_compid,
+                    target_compid,
+                    symbol,
+                    quantity,
+                    price,
+                    side,
+                    order_type,
                 )
 
                 print("Sending new order...")

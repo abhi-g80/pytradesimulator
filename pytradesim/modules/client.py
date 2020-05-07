@@ -148,7 +148,9 @@ def get_order_id(sender_comp_id, symbol):
     return order_id
 
 
-def new_order(sender_comp_id, target_comp_id, symbol, quantity, price, side):
+def new_order(
+    sender_comp_id, target_comp_id, symbol, quantity, price, side, order_type
+):
     if side.lower() == "buy":
         side = fix.Side_BUY
     else:
@@ -165,7 +167,10 @@ def new_order(sender_comp_id, target_comp_id, symbol, quantity, price, side):
     message.setField(fix.Symbol(symbol))
     message.setField(fix.Side(side))
     message.setField(fix.Price(float(price)))
-    message.setField(fix.OrdType(fix.OrdType_LIMIT))
+    if order_type.lower() == "market":
+        message.setField(fix.OrdType(fix.OrdType_MARKET))
+    else:
+        message.setField(fix.OrdType(fix.OrdType_LIMIT))
     message.setField(fix.HandlInst(fix.HandlInst_MANUAL_ORDER_BEST_EXECUTION))
     message.setField(fix.TransactTime())
     message.setField(fix.OrderQty(float(quantity)))
