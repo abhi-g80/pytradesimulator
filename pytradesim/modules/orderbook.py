@@ -46,8 +46,7 @@ class Orderbook:
         else:
             return 0
 
-    def _show_orderbook(self):
-        table = PrettyTable()
+    def book(self):
         bid_prices = sorted(self.bids.keys(), reverse=True)
         ask_prices = sorted(self.asks.keys())
         _bid_levels = []
@@ -62,6 +61,13 @@ class Orderbook:
             ask_qty = self._level_qty(self.asks[ask_prc])
             if ask_qty != 0:
                 _ask_levels.append((ask_prc, ask_qty))
+
+        return _bid_levels, _ask_levels
+
+    def _show_orderbook(self):
+        table = PrettyTable()
+
+        _bid_levels, _ask_levels = self.book()
 
         if len(_ask_levels) > len(_bid_levels):
             diff = len(_ask_levels) - len(_bid_levels)
