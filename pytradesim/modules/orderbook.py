@@ -6,6 +6,11 @@ from enum import Enum
 from prettytable import PrettyTable
 
 
+class Side(Enum):
+    BID = 1
+    OFFER = 2
+
+
 class OrderType(Enum):
     MARKET = 1
     LIMIT = 2
