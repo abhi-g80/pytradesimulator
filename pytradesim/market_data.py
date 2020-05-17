@@ -4,7 +4,7 @@ from multiprocessing.connection import Listener
 
 import click
 import quickfix as fix
-from modules.market.mda import MarketDataAdapter
+from modules.market.mda import Book, MarketDataAdapter
 from modules.utils import setup_logging
 
 
@@ -39,6 +39,8 @@ def main(port=9000, debug=None):
     store = fix.FileStoreFactory(settings)
     app = MarketDataAdapter()
     address = ("localhost", port)
+
+    book = Book("Market", [(1, 1)], [(1, 1)], [])
 
     app.set_logging(logger)
 
