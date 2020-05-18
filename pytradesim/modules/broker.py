@@ -9,6 +9,8 @@ EXECUTION_IDs = {}
 
 MARKETS = {}
 
+FLUSH_BOOK = {}
+
 
 class Message(fix.Message):
     def __str__(self):
@@ -227,10 +229,14 @@ class MessageBroker(BaseApplication):
                 symbol, side, client_order_id, price=price, quantity=quantity,
             )
             execution_reports.append((sessionID, execution_report))
+            FLUSH_BOOK[market] = []
         else:
+            FLUSH_BOOK[market] = []
             while not MARKETS[market].trades.empty():
                 trade = MARKETS[market].trades.get()
                 execution_report = self._handle_trade(symbol, trade, sessionID)
+
+                FLUSH_BOOK[market].append((trade.price, trade.quantity))
 
                 if execution_report:
                     execution_reports.append((trade.session, execution_report))
@@ -317,10 +323,16 @@ class MessageBroker(BaseApplication):
                 orig_client_order_id=orig_client_order_id,
             )
             execution_reports.append((sessionID, execution_report))
+            FLUSH_BOOK[market] = []
         else:
             while not MARKETS[market].trades.empty():
                 trade = MARKETS[market].trades.get()
                 execution_report = self._handle_trade(symbol, trade, sessionID)
+
+                if FLUSH_BOOK[market]:
+                    FLUSH_BOOK[market].append((trade.price, trade.quantity))
+                else:
+                    FLUSH_BOOK[market] = [(trade.price, trade.quantity)]
 
                 if execution_report:
                     execution_reports.append((trade.session, execution_report))
@@ -378,6 +390,8 @@ class MessageBroker(BaseApplication):
 
         MARKETS[market].delete_order(orig_client_order_id.getValue())
         self.logger.debug("Processed delete order.")
+
+        FLUSH_BOOK[market] = []
 
         execution_report = self._create_execution_report(
             symbol,
