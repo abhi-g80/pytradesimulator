@@ -1,23 +1,37 @@
-Python trade simulator engine
-#############################
+Python exchange simulator
+#########################
 
-A simulation exchange to perform add limit orders and get execution over FIX4.2.
+A python based trading exchange running on FIX.4.2.
 
-A client, a server and a limit orderbook engine matching orders. The client connects
-over a FIX4.2 session to server (a.k.a broker). The broker then sends the incoming
-order to orderbook.
+The exchange performs order matching based on FIFO order matching algorithm.
+
+
+Order types
+===========
+
+.. code-block:: bash
+
+    Limit
+    Market
 
 
 Run
 ===
 
-Simply run the client and server.
+Running ordering client and exchange server.
 
 .. code-block:: bash
 
-    $ cd pytradesim
-    $ ./client.py configs/client1.cfg
     $ ./server.py configs/exchange.cfg
+    $ ./client.py configs/client1.cfg
+
+
+Running market data client and market data adapter.
+
+.. code-block:: bash
+
+    $ ./market_client.py configs/mdclient1.cfg
+    $ ./market_data.py configs/price.cfg
 
 
 Test

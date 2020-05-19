@@ -59,13 +59,14 @@ def main(port=9000, debug=None):
             sleep(1)
             if MARKETS:
                 for market in MARKETS:
-                    logger.debug(f"\n{MARKETS[market]._show_orderbook()}")
+                    # remove the comment below to print debug orderbook
+                    # logger.debug(f"\n{MARKETS[market]._show_orderbook()}")
                     if market in FLUSH_BOOK:
                         bids, asks = MARKETS[market].book()
                         trades = []
                         if FLUSH_BOOK[market]:
                             # trades
-                            trades = FLUSH_BOOK[market]
+                            trades = list(set(FLUSH_BOOK[market]))
                         book = Book(market, bids, asks, trades)
                         conn.send(book)
                         FLUSH_BOOK.pop(market)
