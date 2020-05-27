@@ -7,7 +7,7 @@ from time import sleep
 import click
 import quickfix as fix
 from modules.broker import FLUSH_BOOK, MARKETS, MessageBroker
-from modules.market.mda import Book
+from modules.market.utils import Book
 from modules.utils import setup_logging
 
 

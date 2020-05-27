@@ -1,36 +1,7 @@
 import quickfix as fix
 import quickfix42 as fix42
 
-
-class Book:
-    def __init__(self, symbol, bids, asks, trades):
-        self.symbol = symbol
-        self.bids = bids
-        self.asks = asks
-        self.trades = trades
-
-
-class BaseApplication(fix.Application):
-    def onCreate(self, sessionID):
-        return
-
-    def onLogon(self, sessionID):
-        return
-
-    def onLogout(self, sessionID):
-        return
-
-    def toAdmin(self, message, sessionID):
-        return
-
-    def fromAdmin(self, message, sessionID):
-        return
-
-    def toApp(self, message, sessionID):
-        return
-
-    def fromApp(self, message, sessionID):
-        return
+from .utils import BaseApplication
 
 
 class MarketDataAdapter(BaseApplication):

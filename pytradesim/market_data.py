@@ -4,7 +4,8 @@ from multiprocessing.connection import Listener
 
 import click
 import quickfix as fix
-from modules.market.mda import Book, MarketDataAdapter
+from modules.market.mda import MarketDataAdapter
+from modules.market.utils import Book
 from modules.utils import setup_logging
 
 
