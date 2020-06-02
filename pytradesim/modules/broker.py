@@ -173,11 +173,11 @@ class MessageBroker(BaseApplication):
             self.logger.debug(f"Dumping trade \n{trade}")
             return
 
-        trade_side = "1" if trade.side == "b" else "2"
+        # trade_side = "1" if trade.side == "b" else "2"
 
         execution_report = self._create_execution_report(
             symbol,
-            fix.Side(trade_side),
+            fix.Side(str(trade.side.value)),
             fix.ClOrdID(trade.order_id),
             price=fix.Price(trade.price),
             quantity=fix.LastQty(trade.quantity),
@@ -202,12 +202,12 @@ class MessageBroker(BaseApplication):
         if market not in MARKETS:
             MARKETS[market] = Orderbook(market)
 
-        order_side = "b" if side.getValue() == "1" else "s"
+        # order_side = "b" if side.getValue() == "1" else "s"
         order = Order(
             symbol.getValue(),
             price.getValue(),
             quantity.getValue(),
-            order_side,
+            int(side.getValue()),
             int(order_type.getValue()),
             client_order_id.getValue(),
             sessionID,
@@ -297,12 +297,12 @@ class MessageBroker(BaseApplication):
 
         execution_reports = []
 
-        order_side = "b" if side.getValue() == "1" else "s"
+        # order_side = "b" if side.getValue() == "1" else "s"
         order = Order(
             symbol.getValue(),
             price.getValue(),
             quantity.getValue(),
-            order_side,
+            int(side.getValue()),
             int(order_type.getValue()),
             client_order_id.getValue(),
             sessionID,

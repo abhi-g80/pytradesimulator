@@ -98,7 +98,7 @@ class Orderbook:
         if order.order_id not in self.live_order_ids:
             self.live_order_ids[order.order_id] = (order.price, order.side)
         else:
-            return "[Internal] duplicate order ID sent"
+            return "[Internal] duplicate order ID received"
 
     def new_order(self, order):
         result = self.__checks(order)
@@ -113,13 +113,13 @@ class Orderbook:
 
         # Market
         if order_type == "MARKET":
-            order.price = float("-inf") if side == "s" else float("inf")
+            order.price = float("-inf") if side == Side.OFFER else float("inf")
             self.__process_execution(order)
             return
 
         # Limit
         if order_type == "LIMIT":
-            if side == "b":
+            if side == Side.BID:
                 if order.price >= best_ask and self.asks:
                     self.__process_execution(order)
                     if order.quantity > 0:
@@ -135,7 +135,7 @@ class Orderbook:
                     self.asks[order.price].append(order)
 
     def replace_order(self, orig_order_id, order):
-        levels = self.asks if order.side == "s" else self.bids
+        levels = self.asks if order.side == Side.OFFER else self.bids
         price = self.live_order_ids[orig_order_id][0]
 
         for resting_order in levels[price]:
@@ -149,7 +149,7 @@ class Orderbook:
             return "[Internal] orignal order ID not found"
 
         price, side = self.live_order_ids[orig_order_id]
-        levels = self.asks if side == "s" else self.bids
+        levels = self.asks if side == Side.OFFER else self.bids
 
         for resting_order in levels[price]:
             if resting_order.order_id == orig_order_id:
@@ -158,15 +158,15 @@ class Orderbook:
                 break
 
     def __match(self, side, order_price, book_price):
-        if side == "s":
+        if side == Side.OFFER:
             return order_price <= book_price
         else:
             return order_price >= book_price
 
     def __process_execution(self, order):
-        levels = self.asks if order.side == "b" else self.bids
+        levels = self.asks if order.side == Side.BID else self.bids
 
-        prices = sorted(levels.keys(), reverse=(order.side == "s"))
+        prices = sorted(levels.keys(), reverse=(order.side == Side.OFFER))
 
         for price in prices:
             if order.quantity > 0 and self.__match(order.side, order.price, price):
@@ -237,6 +237,18 @@ class Trade(MatchingEngine):
         self.session = session
         self.timestamp = self.timestamp()
 
+    @property
+    def side(self):
+        return self._side
+
+    @side.setter
+    def side(self, value):
+        try:
+            self._side = Side(value)
+            return self._side
+        except ValueError as error:
+            raise ValueError(error)
+
     def __repr__(self):
         return (
             f"Trade(session={self.session}, symbol={self.symbol}, price={self.price}, "
@@ -261,18 +273,17 @@ class Order(MatchingEngine):
     def side(self):
         return self._side
 
-    @side.setter
-    def side(self, value):
-        if value and value.lower() in ["b", "s"]:
-            self._side = value.lower()
-        else:
-            raise ValueError(
-                "Side cannot be empty and should be 'b' (buy) or 's' (sell)."
-            )
-
     @property
     def order_type(self):
         return self._order_type
+
+    @side.setter
+    def side(self, value):
+        try:
+            self._side = Side(value)
+            return self._side
+        except ValueError as error:
+            raise ValueError(error)
 
     @order_type.setter
     def order_type(self, value):
