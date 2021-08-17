@@ -1,5 +1,6 @@
 Python exchange simulator
 #########################
+![build](https://github.com/abhi-g80/pytradesimulator/actions/workflows/build.yaml/badge.svg)
 
 A python based trading exchange running on FIX.4.2.
 
@@ -20,8 +21,12 @@ Run
 
 Running ordering client and exchange server.
 
+Clone the repo and run the following commands,
+
 .. code-block:: bash
 
+    $ cd pytradesim
+    $ mkdir logs
     $ ./server.py
     $ ./client.py configs/client1.cfg
 
