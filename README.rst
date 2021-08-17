@@ -1,6 +1,8 @@
 Python exchange simulator
 #########################
-![build](https://github.com/abhi-g80/pytradesimulator/actions/workflows/build.yaml/badge.svg)
+.. image:: https://github.com/abhi-g80/pytradesimulator/actions/workflows/build.yaml/badge.svg
+    :target: https://github.com/abhi-g80/pytradesimulator/actions/workflows/build.yaml/badge.svg
+
 
 A python based trading exchange running on FIX.4.2.
 
